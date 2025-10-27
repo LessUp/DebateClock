@@ -1,0 +1,13 @@
+{
+  "schema": "debate-timer/v1",
+  "stages": [
+    { "id": "", "name": "正方立论", "seconds": 180 },
+    { "id": "", "name": "反方立论", "seconds": 180 },
+    { "id": "", "name": "正方质询", "seconds": 120 },
+    { "id": "", "name": "反方质询", "seconds": 120 },
+    { "id": "", "name": "自由辩论", "seconds": 480 },
+    { "id": "", "name": "正方总结", "seconds": 180 },
+    { "id": "", "name": "反方总结", "seconds": 180 }
+  ],
+  "settings": { "beepEnabled": true, "warnSeconds": [60, 30], "autoAdvance": false }
+}

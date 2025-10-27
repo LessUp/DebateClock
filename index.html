@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>辩论赛计时器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="color-scheme" content="light dark" />
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 min-h-screen">
+  <div class="max-w-6xl mx-auto p-4 space-y-4">
+    <header class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold">辩论赛计时器</h1>
+      <div class="text-sm opacity-70">按空格开始/暂停 · ←/→ 切换阶段 · +/- 调整10秒</div>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- 阶段列表 -->
+      <section class="lg:col-span-1">
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">议程阶段</h2>
+            <div class="space-x-2">
+              <button id="addStageBtn" class="px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700">添加阶段</button>
+              <button id="resetPresetBtn" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">重置预设</button>
+              <button id="importBtn" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">导入</button>
+              <button id="exportBtn" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">导出</button>
+              <button id="settingsBtn" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">设置</button>
+            </div>
+          </div>
+
+          <ul id="stageList" class="divide-y divide-slate-200 dark:divide-slate-700"></ul>
+        </div>
+      </section>
+
+      <!-- 计时面板 -->
+      <section class="lg:col-span-2">
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 space-y-4">
+          <div>
+            <div id="currentStageName" class="text-lg font-medium">当前阶段</div>
+            <div class="relative mt-2 h-2 w-full bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
+              <div id="progressBar" class="absolute left-0 top-0 h-full w-0 bg-emerald-500 transition-[width] duration-150"></div>
+            </div>
+          </div>
+
+          <div class="text-center select-none">
+            <div id="timeDisplay" class="text-7xl font-mono tabular-nums tracking-wider">00:00</div>
+            <div id="overtimeHint" class="mt-1 text-sm text-rose-500 hidden">已超时</div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <button id="prevBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">上一阶段 (←)</button>
+            <button id="toggleBtn" class="px-3 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700">开始 (空格)</button>
+            <button id="nextBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">下一阶段 (→)</button>
+
+            <button id="minusBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">-10秒 (-)</button>
+            <button id="resetBtn" class="px-3 py-2 rounded bg-amber-500 text-white hover:bg-amber-600">重置 (R)</button>
+            <button id="plusBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">+10秒 (+)</button>
+
+            <button id="muteBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">提示音: 开</button>
+            <button id="fsBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">全屏 (F)</button>
+            <div id="prewarnInfo" class="px-3 py-2 rounded text-center text-sm opacity-70">预警: 60秒</div>
+          </div>
+
+          <div class="text-xs opacity-70">
+            - 键盘：空格开始/暂停，←/→ 切换阶段，+/− 调整10秒，R重置，F全屏，M静音。
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 编辑阶段对话框 -->
+  <dialog id="editDialog" class="rounded-lg p-0 bg-white dark:bg-slate-800 w-96 max-w-[90vw]">
+    <form method="dialog">
+      <div class="p-4 space-y-3">
+        <div class="text-lg font-semibold">编辑阶段</div>
+        <label class="block text-sm">名称
+          <input id="editName" class="mt-1 w-full px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 outline-none" />
+        </label>
+        <label class="block text-sm">时长（秒）
+          <input id="editSeconds" type="number" min="5" step="5" class="mt-1 w-full px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 outline-none" />
+        </label>
+      </div>
+      <div class="bg-slate-100 dark:bg-slate-700 p-3 flex justify-end gap-2">
+        <button value="cancel" class="px-3 py-1 rounded bg-slate-300 dark:bg-slate-600">取消</button>
+        <button id="editSaveBtn" value="default" class="px-3 py-1 rounded bg-emerald-600 text-white">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 设置对话框 -->
+  <dialog id="settingsDialog" class="rounded-lg p-0 bg-white dark:bg-slate-800 w-[520px] max-w-[90vw]">
+    <form method="dialog">
+      <div class="p-4 space-y-4">
+        <div class="text-lg font-semibold">设置</div>
+        <label class="block text-sm">预警秒数（逗号分隔）
+          <input id="warnSecondsInput" placeholder="60,30" class="mt-1 w-full px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 outline-none" />
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm">
+          <input id="autoAdvanceInput" type="checkbox" />
+          <span>倒计时到 0 后自动切换到下一阶段</span>
+        </label>
+      </div>
+      <div class="bg-slate-100 dark:bg-slate-700 p-3 flex justify-end gap-2">
+        <button value="cancel" class="px-3 py-1 rounded bg-slate-300 dark:bg-slate-600">取消</button>
+        <button id="settingsSaveBtn" value="default" class="px-3 py-1 rounded bg-emerald-600 text-white">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 隐藏文件选择用于导入 -->
+  <input id="importFile" type="file" accept="application/json" class="hidden" />
+
+  <script defer src="./app.js"></script>
+</body>
+</html>
