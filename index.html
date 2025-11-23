@@ -1,117 +1,209 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="h-full">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>辩论赛计时器</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <meta name="color-scheme" content="light dark" />
+  <style>
+    /* Custom animations */
+    @keyframes pulse-red {
+      0%, 100% { background-color: rgba(244, 63, 94, 0.1); }
+      50% { background-color: rgba(244, 63, 94, 0.3); }
+    }
+    .animate-bg-pulse {
+      animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    /* Smooth transitions for progress bar */
+    #progressBar { transition: width 0.2s linear, background-color 0.3s ease; }
+    /* Hide scrollbar for cleaner look in lists */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* Font tweaks */
+    .font-timer { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  </style>
+  <script>
+    tailwind.config = {
+      darkMode: 'media', // or 'class' if we want a toggle, defaulting to system for now
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 min-h-screen">
-  <div class="max-w-6xl mx-auto p-4 space-y-4">
-    <header class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold">辩论赛计时器</h1>
-      <div class="text-sm opacity-70">按空格开始/暂停 · ←/→ 切换阶段 · +/- 调整10秒</div>
-    </header>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 h-full overflow-hidden flex flex-col transition-colors duration-500">
 
-    <main class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- 阶段列表 -->
-      <section class="lg:col-span-1">
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-semibold">议程阶段</h2>
-            <div class="space-x-2">
-              <button id="addStageBtn" class="px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700">添加阶段</button>
-              <button id="resetPresetBtn" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">重置预设</button>
-              <button id="importBtn" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">导入</button>
-              <button id="exportBtn" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">导出</button>
-              <button id="settingsBtn" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">设置</button>
-            </div>
-          </div>
-
-          <ul id="stageList" class="divide-y divide-slate-200 dark:divide-slate-700"></ul>
+  <!-- Main Layout -->
+  <div class="flex-1 flex h-full relative">
+    
+    <!-- Left Sidebar: Agenda (Collapsible logic can be added later, keeping it visible for now) -->
+    <aside class="w-80 bg-white/80 dark:bg-slate-900/80 border-r border-slate-200 dark:border-slate-800 flex flex-col z-10 backdrop-blur-md transition-transform duration-300 absolute lg:relative h-full -translate-x-full lg:translate-x-0" id="sidebar">
+      <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <h2 class="font-bold text-lg tracking-tight">议程</h2>
+        <div class="flex gap-1">
+           <button id="addStageBtn" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 transition-colors" title="添加阶段">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+           </button>
+           <button id="settingsBtn" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 transition-colors" title="设置">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+           </button>
         </div>
-      </section>
+      </div>
+      <div class="flex-1 overflow-y-auto no-scrollbar p-2">
+        <ul id="stageList" class="space-y-1"></ul>
+      </div>
+      <div class="p-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-3 gap-2 text-xs">
+        <button id="resetPresetBtn" class="px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors truncate">重置预设</button>
+        <button id="importBtn" class="px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors truncate">导入</button>
+        <button id="exportBtn" class="px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors truncate">导出</button>
+      </div>
+    </aside>
 
-      <!-- 计时面板 -->
-      <section class="lg:col-span-2">
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 space-y-4">
-          <div>
-            <div id="currentStageName" class="text-lg font-medium">当前阶段</div>
-            <div class="relative mt-2 h-2 w-full bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
-              <div id="progressBar" class="absolute left-0 top-0 h-full w-0 bg-emerald-500 transition-[width] duration-150"></div>
-            </div>
+    <!-- Main Content: Timer Area -->
+    <main class="flex-1 flex flex-col relative overflow-hidden bg-slate-50 dark:bg-slate-950" id="mainContainer">
+      
+      <!-- Header / Top Bar -->
+      <header class="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20">
+         <button id="toggleSidebarBtn" class="lg:hidden p-2 rounded bg-white dark:bg-slate-800 shadow-sm text-slate-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+         </button>
+         <div class="hidden lg:block">
+           <!-- Optional Logo or Title -->
+           <h1 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Debate Timer</h1>
+         </div>
+         <div class="flex items-center gap-2">
+            <button id="muteBtn" class="p-2 rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm" title="静音 (M)">
+              <span id="muteIcon">🔔</span>
+            </button>
+            <button id="fsBtn" class="p-2 rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm" title="全屏 (F)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+            </button>
+         </div>
+      </header>
+
+      <!-- Timer Centerpiece -->
+      <div class="flex-1 flex flex-col items-center justify-center select-none relative">
+        <!-- Status Background Effect -->
+        <div id="statusBg" class="absolute inset-0 pointer-events-none transition-colors duration-500 opacity-20"></div>
+
+        <div class="text-center z-10 space-y-6">
+          <div id="currentStageName" class="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-800 dark:text-slate-100 tracking-tight transition-all">
+            准备中...
+          </div>
+          
+          <div class="relative">
+             <div id="timeDisplay" class="text-[18vw] leading-none font-bold font-mono font-timer text-slate-900 dark:text-white tracking-tighter tabular-nums transition-colors duration-300">
+               00:00
+             </div>
+             <div id="overtimeHint" class="absolute -bottom-4 left-0 right-0 text-center text-rose-500 font-bold text-xl uppercase tracking-widest opacity-0 transition-opacity duration-300">
+               已超时
+             </div>
           </div>
 
-          <div class="text-center select-none">
-            <div id="timeDisplay" class="text-7xl font-mono tabular-nums tracking-wider">00:00</div>
-            <div id="overtimeHint" class="mt-1 text-sm text-rose-500 hidden">已超时</div>
-          </div>
+          <!-- Quick Controls (Visible on hover or pause) -->
+          <div class="flex items-center justify-center gap-4 pt-8 opacity-100 transition-opacity duration-300 hover:opacity-100">
+             <button id="minusBtn" class="w-12 h-12 rounded-full flex items-center justify-center bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors" title="-10秒">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+             </button>
+             
+             <button id="toggleBtn" class="w-20 h-20 rounded-full flex items-center justify-center bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all">
+               <!-- Play Icon -->
+               <svg id="playIcon" class="w-10 h-10 translate-x-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+               <!-- Pause Icon (Hidden by default) -->
+               <svg id="pauseIcon" class="w-10 h-10 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+             </button>
 
-          <div class="grid grid-cols-3 gap-3">
-            <button id="prevBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">上一阶段 (←)</button>
-            <button id="toggleBtn" class="px-3 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700">开始 (空格)</button>
-            <button id="nextBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">下一阶段 (→)</button>
-
-            <button id="minusBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">-10秒 (-)</button>
-            <button id="resetBtn" class="px-3 py-2 rounded bg-amber-500 text-white hover:bg-amber-600">重置 (R)</button>
-            <button id="plusBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">+10秒 (+)</button>
-
-            <button id="muteBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">提示音: 开</button>
-            <button id="fsBtn" class="px-3 py-2 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">全屏 (F)</button>
-            <div id="prewarnInfo" class="px-3 py-2 rounded text-center text-sm opacity-70">预警: 60秒</div>
-          </div>
-
-          <div class="text-xs opacity-70">
-            - 键盘：空格开始/暂停，←/→ 切换阶段，+/− 调整10秒，R重置，F全屏，M静音。
+             <button id="plusBtn" class="w-12 h-12 rounded-full flex items-center justify-center bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors" title="+10秒">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+             </button>
           </div>
         </div>
-      </section>
+      </div>
+
+      <!-- Bottom Bar: Progress & Navigation -->
+      <div class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-20">
+        <!-- Progress Bar -->
+        <div class="h-1.5 w-full bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
+           <div id="progressBar" class="h-full bg-emerald-500 w-0 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+        </div>
+        
+        <div class="p-4 flex items-center justify-between">
+           <button id="prevBtn" class="flex items-center gap-2 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+             <span class="hidden sm:inline">上一阶段</span>
+           </button>
+
+           <div class="flex flex-col items-center">
+             <div class="flex gap-2 text-sm text-slate-500 dark:text-slate-400 font-mono">
+               <span id="prewarnInfo">预警: 60s</span>
+               <span class="opacity-50">|</span>
+               <button id="resetBtn" class="hover:text-amber-500 transition-colors" title="重置本阶段 (R)">重置</button>
+             </div>
+           </div>
+
+           <button id="nextBtn" class="flex items-center gap-2 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+             <span class="hidden sm:inline">下一阶段</span>
+             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+           </button>
+        </div>
+      </div>
     </main>
   </div>
 
-  <!-- 编辑阶段对话框 -->
-  <dialog id="editDialog" class="rounded-lg p-0 bg-white dark:bg-slate-800 w-96 max-w-[90vw]">
+  <!-- Dialogs (Kept mostly semantic, just styled better) -->
+  <dialog id="editDialog" class="rounded-xl p-0 bg-white dark:bg-slate-900 shadow-2xl w-96 max-w-[90vw] backdrop:bg-slate-900/50">
     <form method="dialog">
-      <div class="p-4 space-y-3">
-        <div class="text-lg font-semibold">编辑阶段</div>
-        <label class="block text-sm">名称
-          <input id="editName" class="mt-1 w-full px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 outline-none" />
-        </label>
-        <label class="block text-sm">时长（秒）
-          <input id="editSeconds" type="number" min="5" step="5" class="mt-1 w-full px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 outline-none" />
-        </label>
+      <div class="p-6 space-y-4">
+        <h3 class="text-xl font-bold text-slate-900 dark:text-white">编辑阶段</h3>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">名称</label>
+          <input id="editName" class="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-white" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">时长（秒）</label>
+          <input id="editSeconds" type="number" min="5" step="5" class="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-white" />
+        </div>
       </div>
-      <div class="bg-slate-100 dark:bg-slate-700 p-3 flex justify-end gap-2">
-        <button value="cancel" class="px-3 py-1 rounded bg-slate-300 dark:bg-slate-600">取消</button>
-        <button id="editSaveBtn" value="default" class="px-3 py-1 rounded bg-emerald-600 text-white">保存</button>
+      <div class="bg-slate-50 dark:bg-slate-800/50 p-4 flex justify-end gap-3">
+        <button value="cancel" class="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">取消</button>
+        <button id="editSaveBtn" value="default" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 transition-colors font-medium">保存</button>
       </div>
     </form>
   </dialog>
 
-  <!-- 设置对话框 -->
-  <dialog id="settingsDialog" class="rounded-lg p-0 bg-white dark:bg-slate-800 w-[520px] max-w-[90vw]">
+  <dialog id="settingsDialog" class="rounded-xl p-0 bg-white dark:bg-slate-900 shadow-2xl w-[500px] max-w-[90vw] backdrop:bg-slate-900/50">
     <form method="dialog">
-      <div class="p-4 space-y-4">
-        <div class="text-lg font-semibold">设置</div>
-        <label class="block text-sm">预警秒数（逗号分隔）
-          <input id="warnSecondsInput" placeholder="60,30" class="mt-1 w-full px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 outline-none" />
-        </label>
-        <label class="inline-flex items-center gap-2 text-sm">
-          <input id="autoAdvanceInput" type="checkbox" />
-          <span>倒计时到 0 后自动切换到下一阶段</span>
-        </label>
+      <div class="p-6 space-y-6">
+        <h3 class="text-xl font-bold text-slate-900 dark:text-white">设置</h3>
+        
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">预警提示点</label>
+          <div class="text-xs text-slate-500 mb-1">在剩余多少秒时发出提示音（用逗号分隔）</div>
+          <input id="warnSecondsInput" placeholder="60,30" class="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-white font-mono" />
+        </div>
+
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+          <input id="autoAdvanceInput" type="checkbox" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500" />
+          <div class="flex-1">
+             <div class="text-sm font-medium text-slate-900 dark:text-slate-100">自动切换</div>
+             <div class="text-xs text-slate-500">倒计时结束后自动进入下一阶段</div>
+          </div>
+        </div>
       </div>
-      <div class="bg-slate-100 dark:bg-slate-700 p-3 flex justify-end gap-2">
-        <button value="cancel" class="px-3 py-1 rounded bg-slate-300 dark:bg-slate-600">取消</button>
-        <button id="settingsSaveBtn" value="default" class="px-3 py-1 rounded bg-emerald-600 text-white">保存</button>
+      <div class="bg-slate-50 dark:bg-slate-800/50 p-4 flex justify-end gap-3">
+        <button value="cancel" class="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">取消</button>
+        <button id="settingsSaveBtn" value="default" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 transition-colors font-medium">保存设置</button>
       </div>
     </form>
   </dialog>
 
-  <!-- 隐藏文件选择用于导入 -->
   <input id="importFile" type="file" accept="application/json" class="hidden" />
-
   <script defer src="./app.js"></script>
 </body>
 </html>
